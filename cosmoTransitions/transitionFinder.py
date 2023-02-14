@@ -839,7 +839,7 @@ def tunnelFromPhase(phases, start_phase, V, dV, Tmax,
         if err.args[0] != "f(a) and f(b) must have different signs":
             raise
         if nuclCriterion(outdict[Tmax]['action'], Tmax) > 0:
-            if nuclCriterion(outdict[Tmin]['action'], Tmin) < 0:
+            if nuclCriterion(outdict[Tmin]['action'], Tmin + 1e-100) < 0 or True:
                 # tunneling *may* be possible. Find the minimum.
                 # It's important to make an appropriate initial guess;
                 # otherwise the minimization routine may get get stuck in a

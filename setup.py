@@ -1,10 +1,10 @@
 from setuptools import setup
 
 setup(
-    name="cosmoTransitions",
+    name="cosmoTransitionsFork",
     version="2.0.6",
-    packages=['cosmoTransitions', 'cosmoTransitions.examples'],
-    package_dir={'cosmoTransitions.examples': 'examples'},
+    packages=['cosmoTransitionsFork', 'cosmoTransitionsFork.examples'],
+    package_dir={'cosmoTransitionsFork': 'cosmoTransitions', 'cosmoTransitionsFork.examples': 'examples'},
     description=(
         "A package for analyzing finite or zero-temperature cosmological "
         "phase transitions driven by single or multiple scalar fields."
