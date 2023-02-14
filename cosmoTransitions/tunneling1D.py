@@ -506,9 +506,9 @@ class SingleFieldInstanton:
                 convergence_type = "converged"
                 break
 
-            elif y1[1]*ysign > 0 or (y1[0]-self.phi_metaMin)*ysign < 0:
+            elif y1[1]*y0[1] < 0 or (y1[0]-self.phi_metaMin)*ysign < 0:
                 f = cubicInterpFunction(y0, dr*dydr0, y1, dr*dydr1)
-                if(y1[1]*ysign > 0):
+                if(y1[1]*y0[1] < 0):
                     # Extrapolate to where dphi(r) = 0
                     x = optimize.brentq(lambda x: f(x)[1], 0, 1)
                     convergence_type = "undershoot"

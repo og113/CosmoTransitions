@@ -106,6 +106,7 @@ class generic_potential():
         self.deriv_order = 4
         self.renormScaleSq = 1000.**2
         self.Tmax = 1e3
+        self.Tmin = 0.0
 
         self.num_boson_dof = self.num_fermion_dof = None
 
@@ -499,11 +500,11 @@ class generic_potential():
         """
         X = self.findMinimum(np.zeros(self.Ndim), self.Tmax)
         f = lambda T: min(np.linalg.eigvalsh(self.d2V(X,T)))
-        if f(0.0) > 0:
-            # barrier at T = 0
-            T0 = 0.0
+        if f(self.Tmin) > 0:
+            # barrier at T = Tmin
+            T0 = self.Tmin
         else:
-            T0 = optimize.brentq(f, 0.0, self.Tmax)
+            T0 = optimize.brentq(f, self.Tmin, self.Tmax)
         return T0
 
     def forbidPhaseCrit(self, X):
@@ -550,12 +551,12 @@ class generic_potential():
         tstop = self.Tmax
         points = []
         for x0 in self.approxZeroTMin():
-            points.append([x0,0.0])
+            points.append([x0, self.Tmin])
         tracingArgs_ = dict(forbidCrit=self.forbidPhaseCrit)
         tracingArgs_.update(tracingArgs)
         phases = transitionFinder.traceMultiMin(
             self.Vtot, self.dgradV_dT, self.d2V, points,
-            tLow=0.0, tHigh=tstop, deltaX_target=100*self.x_eps,
+            tLow=self.Tmin, tHigh=tstop, deltaX_target=100*self.x_eps,
             **tracingArgs_)
         self.phases = phases
         transitionFinder.removeRedundantPhases(
