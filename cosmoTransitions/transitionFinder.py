@@ -30,7 +30,7 @@ if sys.version_info >= (3,0):
     xrange = range
 
 
-_traceMinimum_rval = namedtuple("traceMinimum_rval", "X T dXdT overX overT")
+_traceMinimum_rval = namedtuple("traceMinimum_rval", "X T overX overT")
 def traceMinimum(f, d2f_dxdt, d2f_dx2, x0, t0, tstop, dtstart, deltaX_target,
                  dtabsMax=20.0, dtfracMax=.25, dtmin=1e-3,
                  deltaX_tol=1.2, minratio=1e-2):
@@ -76,9 +76,8 @@ def traceMinimum(f, d2f_dxdt, d2f_dx2, x0, t0, tstop, dtstart, deltaX_target,
 
     Returns
     -------
-      X, T, dXdT : array_like
-        Arrays of the minimum at different values of t, and
-        its derivative with respect to t.
+      X, T : array_like
+        Arrays of the minimum at different values of t.
       overX : array_like
         The point beyond which the phase seems to disappear.
       overT : float
@@ -191,7 +190,7 @@ def traceMinimum(f, d2f_dxdt, d2f_dx2, x0, t0, tstop, dtstart, deltaX_target,
     X = np.array(X)
     T = np.array(T)
     dXdT = np.array(dXdT)
-    return _traceMinimum_rval(X, T, dXdT, overX, overT)
+    return _traceMinimum_rval(X, T, overX, overT)
 
 
 class Phase:
@@ -203,8 +202,8 @@ class Phase:
     ----------
     key : hashable
         A unique identifier for the phase (usually an int).
-    X, T, dXdT : array_like
-        The minima and its derivative at different temperatures.
+    X, T : array_like
+        The minima at different temperatures.
     tck : tuple
         Spline knots and coefficients, used in `interpolate.splev`.
     low_trans : set
@@ -214,16 +213,15 @@ class Phase:
         Phases (identified by keys) which are joined by a second-order
         transition to this phase.
     """
-    def __init__(self, key, X, T, dXdT):
+    def __init__(self, key, X, T):
         self.key = key
         # We shouldn't ever really need to sort the array, but there must be
         # some bug in the above code that makes it so that occasionally the last
         # step goes backwards. This should fix that.
         i = np.argsort(T)
-        T, X, dXdT = T[i], X[i], dXdT[i]
+        T, X = T[i], X[i]
         self.X = X
         self.T = T
-        self.dXdT = dXdT
         # Make the spline:
         k = 3 if len(T) > 3 else 1
         tck, u = interpolate.splprep(X.T, u=T, s=0, k=k)
@@ -272,12 +270,8 @@ class Phase:
             Tstr = "[%0.4g, ..., %0.4g]" % (self.T[0], self.T[-1])
         else:
             Tstr = "[%0.4g]" % self.T[0]
-        if len(self.dXdT) > 1:
-            dXdTstr = "[%s, ..., %s]" % (self.dXdT[0], self.dXdT[-1])
-        else:
-            dXdTstr = "[%s]" % self.dXdT[0]
-        s = "Phase(key=%s, X=%s, T=%s, dXdT=%s" % (
-            self.key, Xstr, Tstr, dXdTstr)
+        s = "Phase(key=%s, X=%s, T=%s" % (
+            self.key, Xstr, Tstr)
         np.set_printoptions(**popts)
         return s
 
@@ -383,7 +377,7 @@ def traceMultiMin(f, d2f_dxdt, d2f_dx2,
                 down_trace = traceMinimum(f, d2f_dxdt, d2f_dx2, x1,
                                           t1, tLow, -dt1, deltaX_target,
                                           **single_trace_args)
-                X_down, T_down, dXdT_down, nX, nT = down_trace
+                X_down, T_down, nX, nT = down_trace
                 t2,dt2 = nT-tjump, .1*tjump
                 x2 = fmin(nX,t2)
                 nextPoint.append([t2,dt2,x2,phase_key])
@@ -392,13 +386,12 @@ def traceMultiMin(f, d2f_dxdt, d2f_dx2,
                         nextPoint.append([t2,dt2,fmin(point,t2),phase_key])
                 X_down = X_down[::-1]
                 T_down = T_down[::-1]
-                dXdT_down = dXdT_down[::-1]
             if (t1 < tHigh):
                 print("Tracing minimum up")
                 up_trace = traceMinimum(f, d2f_dxdt, d2f_dx2, x1,
                                         t1, tHigh, +dt1, deltaX_target,
                                         **single_trace_args)
-                X_up, T_up, dXdT_up, nX, nT = up_trace
+                X_up, T_up, nX, nT = up_trace
                 t2,dt2 = nT+tjump, .1*tjump
                 x2 = fmin(nX,t2)
                 nextPoint.append([t2,dt2,x2,phase_key])
@@ -407,20 +400,19 @@ def traceMultiMin(f, d2f_dxdt, d2f_dx2,
                         nextPoint.append([t2,dt2,fmin(point,t2),phase_key])
             # Then join the two together
             if (t1 <= tLow):
-                X,T,dXdT = X_up, T_up, dXdT_up
+                X,T = X_up, T_up
             elif (t1 >= tHigh):
-                X,T,dXdT = X_down, T_down, dXdT_down
+                X,T = X_down, T_down
             else:
                 X = np.append(X_down, X_up[1:], 0)
                 T = np.append(T_down, T_up[1:], 0)
-                dXdT = np.append(dXdT_down, dXdT_up[1:], 0)
             if forbidCrit is not None and (forbidCrit(X[0]) or
                                            forbidCrit(X[-1])):
                 # The phase is forbidden.
                 # Don't add it, and make it a dead-end.
                 nextPoint = nextPoint[:oldNumPoints]
             elif len(X) > 1:
-                newphase = Phase(phase_key, X,T,dXdT)
+                newphase = Phase(phase_key, X, T)
                 if linkedFrom is not None:
                     newphase.addLinkFrom(phases[linkedFrom])
                 phases[phase_key] = newphase
@@ -575,16 +567,13 @@ def removeRedundantPhases(f, phases, xeps=1e-5, diftol=1e-2):
                         i = p_low.T <= tmax
                         T_low = p_low.T[i]
                         X_low = p_low.X[i]
-                        dXdT_low = p_low.dXdT[i]
                         i = p_high.T > tmax
                         T_high = p_high.T[i]
                         X_high = p_high.X[i]
-                        dXdT_high = p_high.dXdT[i]
                         T = np.append(T_low, T_high, axis=0)
                         X = np.append(X_low, X_high, axis=0)
-                        dXdT = np.append(dXdT_low, dXdT_high, axis=0)
                         newkey = str(p_low.key) + "_" + str(p_high.key)
-                        newphase = Phase(newkey, X, T, dXdT)
+                        newphase = Phase(newkey, X, T)
                         phases[newkey] = newphase
                         _removeRedundantPhase(phases, p_low, newphase)
                         _removeRedundantPhase(phases, p_high, newphase)
